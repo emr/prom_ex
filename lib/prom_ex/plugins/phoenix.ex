@@ -292,7 +292,7 @@ if Code.ensure_loaded?(Phoenix) do
             measurement: :duration,
             description: "The time it takes for the application to respond to HTTP requests.",
             reporter_options: [
-              buckets: [10, 100, 500, 1_000, 5_000, 10_000, 30_000]
+              buckets: [10, 100, 250, 500, 1_000, 5_000, 10_000, 30_000]
             ],
             tag_values: get_conn_tags(routers, additional_routes, additional_tags),
             tags: http_metrics_tags ++ additional_tags,

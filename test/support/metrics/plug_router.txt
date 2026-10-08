@@ -33,6 +33,7 @@ testapp_plug_router_http_response_size_bytes_count{method="GET",path="/users/:id
 # TYPE testapp_plug_router_http_request_duration_milliseconds histogram
 testapp_plug_router_http_request_duration_milliseconds_bucket{method="GET",path="/users/:id",status="500",le="10"} 1
 testapp_plug_router_http_request_duration_milliseconds_bucket{method="GET",path="/users/:id",status="500",le="100"} 1
+testapp_plug_router_http_request_duration_milliseconds_bucket{method="GET",path="/users/:id",status="500",le="250"} 1
 testapp_plug_router_http_request_duration_milliseconds_bucket{method="GET",path="/users/:id",status="500",le="500"} 1
 testapp_plug_router_http_request_duration_milliseconds_bucket{method="GET",path="/users/:id",status="500",le="1000"} 1
 testapp_plug_router_http_request_duration_milliseconds_bucket{method="GET",path="/users/:id",status="500",le="5000"} 1
@@ -43,6 +44,7 @@ testapp_plug_router_http_request_duration_milliseconds_sum{method="GET",path="/u
 testapp_plug_router_http_request_duration_milliseconds_count{method="GET",path="/users/:id",status="500"} 1
 testapp_plug_router_http_request_duration_milliseconds_bucket{method="GET",path="/users/:id",status="200",le="10"} 0
 testapp_plug_router_http_request_duration_milliseconds_bucket{method="GET",path="/users/:id",status="200",le="100"} 1
+testapp_plug_router_http_request_duration_milliseconds_bucket{method="GET",path="/users/:id",status="200",le="250"} 1
 testapp_plug_router_http_request_duration_milliseconds_bucket{method="GET",path="/users/:id",status="200",le="500"} 1
 testapp_plug_router_http_request_duration_milliseconds_bucket{method="GET",path="/users/:id",status="200",le="1000"} 1
 testapp_plug_router_http_request_duration_milliseconds_bucket{method="GET",path="/users/:id",status="200",le="5000"} 1
