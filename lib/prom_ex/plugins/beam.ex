@@ -169,7 +169,7 @@ defmodule PromEx.Plugins.Beam do
           description:
             "The total number of wall clock #{duration_unit_plural} that have passed since the system started.",
           measurement: :count,
-          unit: duration_unit
+          unit: {:millisecond, duration_unit}
         ),
         last_value(
           metric_prefix ++ [:stats, :port, :count],

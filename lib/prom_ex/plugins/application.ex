@@ -136,7 +136,7 @@ defmodule PromEx.Plugins.Application do
           description:
             "The total number of wall clock #{duration_unit_plural} that have passed since the application started.",
           measurement: :count,
-          unit: duration_unit
+          unit: {:millisecond, duration_unit}
         )
       ]
     )

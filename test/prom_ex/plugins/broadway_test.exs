@@ -51,4 +51,17 @@ defmodule PromEx.Plugins.BroadwayTest do
       metric
     end
   end
+
+  describe "init metrics" do
+    test "configuration durations are converted to the configured duration unit" do
+      assert %Event{metrics: init_metrics} =
+               [otp_app: :web_app, duration_unit: :second]
+               |> Broadway.event_metrics()
+               |> Enum.find(&(&1.group_name == :broadway_init_event_metrics))
+
+      batch_timeout_metric = Enum.find(init_metrics, &(:batch_timeout in &1.name))
+
+      assert batch_timeout_metric.measurement.(%{}, %{batch_timeout: 1_000}) == 1.0
+    end
+  end
 end
