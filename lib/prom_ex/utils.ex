@@ -34,7 +34,7 @@ defmodule PromEx.Utils do
     normalize_module_name(normalized_reason)
   end
 
-  def normalize_exception(:exit, {reason, _details}, _stacktrace) do
+  def normalize_exception(:exit, {reason, _details}, _stacktrace) when is_atom(reason) do
     reason
     |> Atom.to_string()
     |> Macro.camelize()
