@@ -43,5 +43,23 @@ defmodule PromEx.BucketGeneratorTest do
         BucketGenerator.exponential!(1, 100, -10)
       end
     end
+
+    test "should raise an error when the buckets would not grow" do
+      assert_raise RuntimeError, ~r/^The start value.*/, fn ->
+        BucketGenerator.exponential!(0, 2, 10)
+      end
+
+      assert_raise RuntimeError, ~r/^The factor value.*/, fn ->
+        BucketGenerator.exponential!(1, 1, 10)
+      end
+    end
+
+    test "should support a single bucket" do
+      assert BucketGenerator.exponential!(5, 2, 1) == [5]
+    end
+
+    test "should not return duplicate buckets" do
+      assert BucketGenerator.exponential!(1, 1.5, 6) == [1, 2, 3, 5, 7]
+    end
   end
 end

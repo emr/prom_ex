@@ -45,13 +45,13 @@ defmodule PromEx.BucketGenerator do
       [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
   """
   @spec exponential!(start :: number(), factor :: number(), num_buckets :: number()) :: list(non_neg_integer())
-  def exponential!(start, _, _) when start < 0,
+  def exponential!(start, _, _) when start <= 0,
     do: raise("The start value for BucketGenerator.exponential/3 must be a positive integer")
 
-  def exponential!(_, factor, _) when factor < 1,
-    do: raise("The factor value for BucketGenerator.exponential/3 must be greater than or equal to 1")
+  def exponential!(_, factor, _) when factor <= 1,
+    do: raise("The factor value for BucketGenerator.exponential/3 must be greater than 1")
 
-  def exponential!(_, _, num_buckets) when num_buckets <= 1,
+  def exponential!(_, _, num_buckets) when num_buckets < 1,
     do: raise("The num_buckets value for BucketGenerator.exponential/3 must be greater than or equal to 1")
 
   def exponential!(start, factor, num_buckets) do
@@ -59,5 +59,7 @@ defmodule PromEx.BucketGenerator do
     |> Enum.map(fn bucket ->
       :erlang.trunc(start * :math.pow(factor, bucket))
     end)
+    # Truncating can produce duplicate boundaries when the factor is small (e.g. 1.5)
+    |> Enum.dedup()
   end
 end
