@@ -189,4 +189,17 @@ defmodule PromEx.Plugins.PhoenixTest do
       assert resolve_action(tag_values_fn, "/users") == :overlap_index
     end
   end
+
+  describe "endpoint metrics" do
+    defmodule StubEndpoint do
+      def url, do: "https://localhost:4443"
+    end
+
+    test "should resolve the port when the HTTP listener is disabled" do
+      [endpoint_info | _] = Phoenix.event_metrics(otp_app: :prom_ex, router: TestApp.Router, endpoint: StubEndpoint)
+      tag_values_fn = endpoint_info.metrics |> List.first() |> Map.get(:tag_values)
+
+      assert %{port: 4443} = tag_values_fn.(%{config: [http: false, https: [port: 4443]], module: StubEndpoint})
+    end
+  end
 end

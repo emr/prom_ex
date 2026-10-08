@@ -257,10 +257,11 @@ if Code.ensure_loaded?(Phoenix) do
     defp phoenix_init_tag_values(%{config: config, module: module}) do
       port =
         cond do
-          Keyword.has_key?(config, :http) and config[:http][:port] ->
+          # The :http/:https config can be explicitly set to `false` to disable a listener
+          is_list(config[:http]) and config[:http][:port] ->
             config[:http][:port]
 
-          Keyword.has_key?(config, :https) and config[:https][:port] ->
+          is_list(config[:https]) and config[:https][:port] ->
             config[:https][:port]
 
           true ->
