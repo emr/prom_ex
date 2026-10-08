@@ -88,7 +88,8 @@ if Code.ensure_loaded?(Broadway) do
             description: "The Broadway supervisor's hibernate after default value.",
             measurement: extract_default_config_measurement(:hibernate_after),
             tags: [:name],
-            tag_values: &extract_init_tag_values/1
+            tag_values: &extract_init_tag_values/1,
+            unit: {:millisecond, duration_unit}
           ),
           last_value(
             metric_prefix ++ [:init, :resubscribe_interval, :default, duration_unit_plural],
@@ -96,7 +97,8 @@ if Code.ensure_loaded?(Broadway) do
             description: "The Broadway supervisor's resubscribe interval default value.",
             measurement: extract_default_config_measurement(:resubscribe_interval),
             tags: [:name],
-            tag_values: &extract_init_tag_values/1
+            tag_values: &extract_init_tag_values/1,
+            unit: {:millisecond, duration_unit}
           ),
           last_value(
             metric_prefix ++ [:init, :max, :duration, :default, duration_unit_plural],
@@ -121,14 +123,16 @@ if Code.ensure_loaded?(Broadway) do
             description: "The Broadway supervisor's shutdown default value.",
             measurement: extract_default_config_measurement(:shutdown),
             tags: [:name],
-            tag_values: &extract_init_tag_values/1
+            tag_values: &extract_init_tag_values/1,
+            unit: {:millisecond, duration_unit}
           ),
           last_value(
             metric_prefix ++ [:init, :processor, :hibernate_after, duration_unit_plural],
             event_name: @init_topology_processors_proxy_event,
             description: "The Broadway processors hibernate after value.",
             measurement: fn _measurements, %{hibernate_after: hibernate_after} -> hibernate_after end,
-            tags: [:name, :processor]
+            tags: [:name, :processor],
+            unit: {:millisecond, duration_unit}
           ),
           last_value(
             metric_prefix ++ [:init, :processor, :max_demand, :value],
@@ -149,7 +153,8 @@ if Code.ensure_loaded?(Broadway) do
             event_name: @init_topology_batchers_proxy_event,
             description: "The Broadway batchers hibernate after value.",
             measurement: fn _measurements, %{hibernate_after: hibernate_after} -> hibernate_after end,
-            tags: [:name, :batcher]
+            tags: [:name, :batcher],
+            unit: {:millisecond, duration_unit}
           ),
           last_value(
             metric_prefix ++ [:init, :batcher, :concurrency, :value],
@@ -170,7 +175,8 @@ if Code.ensure_loaded?(Broadway) do
             event_name: @init_topology_batchers_proxy_event,
             description: "The Broadway batchers timeout value.",
             measurement: fn _measurements, %{batch_timeout: batch_timeout} -> batch_timeout end,
-            tags: [:name, :batcher]
+            tags: [:name, :batcher],
+            unit: {:millisecond, duration_unit}
           )
         ]
       )
@@ -356,10 +362,17 @@ if Code.ensure_loaded?(Broadway) do
 
     defp buckets_for_unit(unit) do
       case unit do
-        :nanosecond -> [1, 100, 1_000, 2_000, 10_000, 50_000, 1_000_000]
-        :microsecond -> [10_000, 100_000, 500_000, 1_000_000, 10_000_000, 30_000_000, 60_000_000]
-        :millisecond -> [10, 100, 500, 1_000, 10_000, 30_000, 60_000]
-        :second -> [1, 5, 10, 100, 500, 1_000, 10_000]
+        :nanosecond ->
+          [10_000_000, 100_000_000, 500_000_000, 1_000_000_000, 10_000_000_000, 30_000_000_000, 60_000_000_000]
+
+        :microsecond ->
+          [10_000, 100_000, 500_000, 1_000_000, 10_000_000, 30_000_000, 60_000_000]
+
+        :millisecond ->
+          [10, 100, 500, 1_000, 10_000, 30_000, 60_000]
+
+        :second ->
+          [0.01, 0.1, 0.5, 1, 10, 30, 60]
       end
     end
   end

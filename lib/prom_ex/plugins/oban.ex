@@ -404,7 +404,8 @@ if Code.ensure_loaded?(Oban) do
             end,
             tags: [:name],
             tag_values: &oban_init_tag_values/1,
-            keep: keep_function_filter
+            keep: keep_function_filter,
+            unit: {:millisecond, duration_unit}
           ),
           last_value(
             metric_prefix ++ [:init, :dispatch, :cooldown, duration_unit_plural],
@@ -415,7 +416,8 @@ if Code.ensure_loaded?(Oban) do
             end,
             tags: [:name],
             tag_values: &oban_init_tag_values/1,
-            keep: keep_function_filter
+            keep: keep_function_filter,
+            unit: {:millisecond, duration_unit}
           ),
           last_value(
             metric_prefix ++ [:init, :queue, :concurrency, :limit],

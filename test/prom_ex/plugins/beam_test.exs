@@ -30,6 +30,16 @@ defmodule PromEx.Plugins.BeamTest do
     test "should return the correct number of metrics" do
       assert length(Beam.polling_metrics(otp_app: :prom_ex)) == 4
     end
+
+    test "should convert the uptime to the configured duration unit" do
+      uptime_metric =
+        [otp_app: :prom_ex, duration_unit: :second]
+        |> Beam.polling_metrics()
+        |> Enum.flat_map(& &1.metrics)
+        |> Enum.find(&(&1.name == [:prom_ex, :prom_ex, :beam, :stats, :uptime, :seconds, :count]))
+
+      assert uptime_metric.measurement.(%{count: 5_000}) == 5.0
+    end
   end
 
   describe "manual_metrics/1" do

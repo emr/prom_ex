@@ -40,8 +40,26 @@ defmodule PromEx.Plugins.BroadwayTest do
       assert %{name: "SomeModule", processor_key: :default} = metric.tag_values.(exception_metadata)
     end
 
-    defp assert_event_metric(metric_group, event) do
-      assert event_metrics = Broadway.event_metrics(otp_app: :web_app)
+    test "message duration buckets cover the same range for every duration unit" do
+      millisecond_buckets =
+        assert_event_metric(:broadway_message_event_metrics, [:broadway, :processor, :message, :stop])
+
+      for {unit, convert} <- [
+            nanosecond: &(&1 * 1_000_000),
+            microsecond: &(&1 * 1_000),
+            second: &(&1 / 1_000)
+          ] do
+        metric =
+          assert_event_metric(:broadway_message_event_metrics, [:broadway, :processor, :message, :stop],
+            duration_unit: unit
+          )
+
+        assert metric.reporter_options[:buckets] == Enum.map(millisecond_buckets.reporter_options[:buckets], convert)
+      end
+    end
+
+    defp assert_event_metric(metric_group, event, opts \\ []) do
+      assert event_metrics = Broadway.event_metrics(Keyword.merge([otp_app: :web_app], opts))
 
       assert %Event{metrics: message_metrics} =
                Enum.find(event_metrics, fn metrics -> metrics.group_name == metric_group end)
@@ -49,6 +67,19 @@ defmodule PromEx.Plugins.BroadwayTest do
       assert %Distribution{} = metric = Enum.find(message_metrics, fn dist -> dist.event_name == event end)
 
       metric
+    end
+  end
+
+  describe "init metrics" do
+    test "configuration durations are converted to the configured duration unit" do
+      assert %Event{metrics: init_metrics} =
+               [otp_app: :web_app, duration_unit: :second]
+               |> Broadway.event_metrics()
+               |> Enum.find(&(&1.group_name == :broadway_init_event_metrics))
+
+      batch_timeout_metric = Enum.find(init_metrics, &(:batch_timeout in &1.name))
+
+      assert batch_timeout_metric.measurement.(%{}, %{batch_timeout: 1_000}) == 1.0
     end
   end
 end

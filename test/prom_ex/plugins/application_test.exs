@@ -33,6 +33,13 @@ defmodule PromEx.Plugins.ApplicationTest do
     test "should return the correct number of metrics" do
       assert %Polling{} = Application.polling_metrics(otp_app: :test)
     end
+
+    test "should convert the uptime to the configured duration unit" do
+      %Polling{metrics: [uptime_metric]} = Application.polling_metrics(otp_app: :test, duration_unit: :second)
+
+      assert uptime_metric.name == [:test, :prom_ex, :application, :uptime, :seconds, :count]
+      assert uptime_metric.measurement.(%{count: 5_000}) == 5.0
+    end
   end
 
   describe "manual_metrics/1" do
