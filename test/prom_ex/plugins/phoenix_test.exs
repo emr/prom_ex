@@ -124,6 +124,23 @@ defmodule PromEx.Plugins.PhoenixTest do
     end
   end
 
+  describe "additional tags" do
+    test "should not fail when the private key atom does not exist yet" do
+      [_endpoint_info, http_metrics | _] =
+        Phoenix.event_metrics(
+          otp_app: :prom_ex,
+          router: TestApp.Router,
+          endpoint: TestApp.Endpoint,
+          additional_tags: [:tag_never_put_in_conn_private]
+        )
+
+      tag_values_fn = http_metrics.metrics |> List.first() |> Map.get(:tag_values)
+      conn = %Plug.Conn{method: "GET", request_path: "/users", host: "localhost", status: 200}
+
+      assert %{tag_never_put_in_conn_private: nil} = tag_values_fn.(%{conn: conn})
+    end
+  end
+
   describe "router options order preservation" do
     defp http_tag_values_fn(opts) do
       [_endpoint_info, http_metrics | _] =
@@ -170,6 +187,19 @@ defmodule PromEx.Plugins.PhoenixTest do
 
       # TestApp.OverlapRouter is first, so its action wins for the overlapping route
       assert resolve_action(tag_values_fn, "/users") == :overlap_index
+    end
+  end
+
+  describe "endpoint metrics" do
+    defmodule StubEndpoint do
+      def url, do: "https://localhost:4443"
+    end
+
+    test "should resolve the port when the HTTP listener is disabled" do
+      [endpoint_info | _] = Phoenix.event_metrics(otp_app: :prom_ex, router: TestApp.Router, endpoint: StubEndpoint)
+      tag_values_fn = endpoint_info.metrics |> List.first() |> Map.get(:tag_values)
+
+      assert %{port: 4443} = tag_values_fn.(%{config: [http: false, https: [port: 4443]], module: StubEndpoint})
     end
   end
 end

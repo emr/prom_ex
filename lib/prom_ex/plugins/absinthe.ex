@@ -209,7 +209,7 @@ if Code.ensure_loaded?(Absinthe) do
 
         current_operation ->
           %{
-            schema: normalize_module_name(current_operation.schema_node.definition),
+            schema: operation_schema_name(current_operation, metadata),
             operation_type: Map.get(current_operation, :type, :unknown),
             entrypoint: entrypoint_from_current_operation(current_operation)
           }
@@ -234,11 +234,23 @@ if Code.ensure_loaded?(Absinthe) do
 
         current_operation ->
           %{
-            schema: normalize_module_name(current_operation.schema_node.definition),
+            schema: operation_schema_name(current_operation, metadata),
             operation_type: Map.get(current_operation, :type, :unknown),
             entrypoint: entrypoint_from_current_operation(current_operation)
           }
       end
+    end
+
+    # The operation has no schema node when the schema does not support the operation type
+    # (e.g. a mutation sent to a schema without a mutation root), so fall back to the configured schema
+    defp operation_schema_name(%{schema_node: %{definition: definition}}, _metadata) do
+      normalize_module_name(definition)
+    end
+
+    defp operation_schema_name(_current_operation, metadata) do
+      metadata.options
+      |> Keyword.get(:schema, :unknown)
+      |> normalize_module_name()
     end
 
     defp entrypoint_from_current_operation(current_operation) do
