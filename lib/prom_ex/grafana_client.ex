@@ -203,8 +203,15 @@ defmodule PromEx.GrafanaClient do
 
   defp handle_grafana_response(finch_response) do
     case finch_response do
-      {:ok, %Finch.Response{status: status_code, body: body}} when status_code in [200, 201] ->
-        {:ok, Jason.decode!(body)}
+      {:ok, %Finch.Response{status: status_code, body: body} = response} when status_code in [200, 201] ->
+        case Jason.decode(body) do
+          {:ok, decoded_body} ->
+            {:ok, decoded_body}
+
+          {:error, _decode_error} ->
+            Logger.warning("Received a non-JSON response from Grafana: #{inspect(response)}")
+            {:error, :invalid_response_body}
+        end
 
       {:ok, %Finch.Response{status: status_code} = response} ->
         Logger.warning("Received a #{status_code} from Grafana because: #{inspect(response)}")
