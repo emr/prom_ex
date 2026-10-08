@@ -12,14 +12,14 @@ defmodule Mix.Tasks.PromEx.Gen.Config do
                         what is configured in Grafana from the Prometheus instance's
                         `datasource_id`.
 
-  -o, --otp_app         The OTP application that PromEx is being installed in. This
+  -o, --otp-app         The OTP application that PromEx is being installed in. This
                         should be provided as the snake case atom (minus the leading
                         colon). For example, if the `:app` value in your `mix.exs` file
                         is `:my_cool_app`, this argument should be provided as `my_cool_app`.
                         By default PromEx will read your `mix.exs` file to determine the OTP
                         application value so this is an OPTIONAL argument.
 
-  -m, --prom_ex_module  Optional name of the PromEx module that will be created. This should
+  -m, --prom-ex-module  Optional name of the PromEx module that will be created. This should
                         be provided as an unscoped module name, and it will be saved to the
                         corresponding file, e.g. `-m OpsPromEx` will save to `ops_prom_ex.ex`.
 

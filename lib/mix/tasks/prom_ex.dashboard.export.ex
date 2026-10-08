@@ -16,7 +16,7 @@ defmodule Mix.Tasks.PromEx.Dashboard.Export do
   -s, --stdout    A boolean flag denoting that the rendered dashboard should be output
                    to STDOUT.
 
-  -f, --file_path  If you would like the write the generated JSON dashboard definition
+  -f, --file-path  If you would like the write the generated JSON dashboard definition
                    to a file, you can provide a relative file path in the project's
                    `priv` directory.
 
