@@ -34,8 +34,8 @@ defmodule Mix.Tasks.PromEx.Dashboard.Export do
 
   @impl true
   def run(args) do
-    # Compile the project
-    Mix.Task.run("compile")
+    # Compile the project and load the runtime configuration
+    Mix.Task.run("app.config")
 
     # Get CLI args and set up uploader
     cli_args = parse_options(args)

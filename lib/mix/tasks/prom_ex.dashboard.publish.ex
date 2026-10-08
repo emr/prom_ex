@@ -27,8 +27,8 @@ defmodule Mix.Tasks.PromEx.Dashboard.Publish do
 
   @impl true
   def run(args) do
-    # Compile the project
-    Mix.Task.run("compile")
+    # Compile the project and load the runtime configuration
+    Mix.Task.run("app.config")
 
     # Get CLI args and set up uploader
     %{module: prom_ex_module, timeout: timeout} = parse_options(args)
