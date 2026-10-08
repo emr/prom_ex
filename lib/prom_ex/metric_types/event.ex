@@ -27,43 +27,46 @@ defmodule PromEx.MetricTypes.Event do
   def build(group_name, metrics) do
     %__MODULE__{
       group_name: group_name,
-      metrics: build_buckets(group_name, metrics)
+      metrics: build_buckets(metrics)
     }
   end
 
-  defp build_buckets(name, metrics) do
+  defp build_buckets(metrics) do
     if PromEx.storage_adapter() == PromEx.Storage.Peep do
-      build_buckets_modules(name, metrics)
+      Enum.map(metrics, &build_bucket/1)
     else
       metrics
     end
   end
 
-  defp build_buckets_modules(name, metrics) do
-    metrics
-    |> Enum.with_index()
-    |> Enum.map(&build_bucket(name, &1))
-  end
-
-  defp build_bucket(name, {%Distribution{} = dist, idx}) do
+  defp build_bucket(%Distribution{} = dist) do
     reporter_options =
       Keyword.put_new_lazy(dist.reporter_options, :peep_bucket_calculator, fn ->
-        buckets = Keyword.fetch!(dist.reporter_options, :buckets)
-
-        {:module, name, _, _} =
-          Module.create(
-            Module.concat(name, "Bucket_#{idx}"),
-            quote do
-              use Peep.Buckets.Custom, buckets: unquote(buckets)
-            end,
-            __ENV__
-          )
-
-        name
+        dist.reporter_options
+        |> Keyword.fetch!(:buckets)
+        |> bucket_module()
       end)
 
     %Distribution{dist | reporter_options: reporter_options}
   end
 
-  defp build_bucket(_name, {other, _}), do: other
+  defp build_bucket(other), do: other
+
+  # The bucket modules are named after their boundaries so that each one is only defined once, regardless
+  # of how many metrics or PromEx modules use it and of how many times the supervision tree is restarted
+  defp bucket_module(buckets) do
+    module = Module.concat(__MODULE__.PeepBuckets, "Buckets#{:erlang.phash2(buckets, 4_294_967_296)}")
+
+    unless Code.ensure_loaded?(module) do
+      Module.create(
+        module,
+        quote do
+          use Peep.Buckets.Custom, buckets: unquote(buckets)
+        end,
+        __ENV__
+      )
+    end
+
+    module
+  end
 end

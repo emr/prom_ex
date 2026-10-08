@@ -60,6 +60,8 @@ defmodule PromEx.ETSCronFlusher do
 
     Task.await(flush_task, @flush_timeout)
 
+    # A deferred flush may have scheduled another timer while this message was queued
+    Process.cancel_timer(state.timer_ref)
     timer_ref = schedule_flush(state)
     {:noreply, %{state | timer_ref: timer_ref}}
   end

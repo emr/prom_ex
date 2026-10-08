@@ -222,7 +222,7 @@ defmodule PromEx.Config do
     * `:auth_user` - When using a `:basic` authentication strategy, this field is required to validate the
       incoming request against a valid user.
 
-    * `:auth_password` - When using a `:bearer` authentication strategy, this field is required to validate the
+    * `:auth_password` - When using a `:basic` authentication strategy, this field is required to validate the
       incoming request against a valid password.
 
     * `:cowboy_opts` - A keyword list of any additional options that should be passed to `Plug.Cowboy` (see

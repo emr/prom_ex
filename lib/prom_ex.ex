@@ -13,7 +13,7 @@ defmodule PromEx do
 
   ```elixir
   defmodule MyApp.PromEx do
-    use PromEx,  otp_app: :web_app
+    use PromEx, otp_app: :my_app
 
     ...
   end
