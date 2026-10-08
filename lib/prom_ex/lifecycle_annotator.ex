@@ -34,47 +34,13 @@ defmodule PromEx.LifecycleAnnotator do
     # Trap exit so that the stop annotation can be published
     Process.flag(:trap_exit, true)
 
-    {:ok, state, {:continue, :create_startup_annotation}}
+    # Collect the application details up front so that they are also available to terminate/2
+    # in case the startup annotation fails
+    {:ok, add_app_details(state), {:continue, :create_startup_annotation}}
   end
 
   @impl true
   def handle_continue(:create_startup_annotation, %{prom_ex_module: prom_ex_module, otp_app: otp_app} = state) do
-    # Collect relevant info for application
-    hostname =
-      :inet.gethostname()
-      |> elem(1)
-      |> :erlang.list_to_binary()
-
-    app_version =
-      otp_app
-      |> Application.spec(:vsn)
-      |> to_string()
-
-    git_sha =
-      case System.fetch_env("GIT_SHA") do
-        {:ok, git_sha} ->
-          git_sha
-
-        :error ->
-          "Not available"
-      end
-
-    git_author =
-      case System.fetch_env("GIT_AUTHOR") do
-        {:ok, git_sha} ->
-          git_sha
-
-        :error ->
-          "Not available"
-      end
-
-    state =
-      state
-      |> Map.put(:hostname, hostname)
-      |> Map.put(:app_version, app_version)
-      |> Map.put(:git_sha, git_sha)
-      |> Map.put(:git_author, git_author)
-
     grafana_conn = GrafanaClient.build_conn(prom_ex_module)
 
     annotation_details = generate_annotation_details(state)
@@ -111,6 +77,42 @@ defmodule PromEx.LifecycleAnnotator do
     end
 
     :ok
+  end
+
+  defp add_app_details(%{otp_app: otp_app} = state) do
+    hostname =
+      :inet.gethostname()
+      |> elem(1)
+      |> :erlang.list_to_binary()
+
+    app_version =
+      otp_app
+      |> Application.spec(:vsn)
+      |> to_string()
+
+    git_sha =
+      case System.fetch_env("GIT_SHA") do
+        {:ok, git_sha} ->
+          git_sha
+
+        :error ->
+          "Not available"
+      end
+
+    git_author =
+      case System.fetch_env("GIT_AUTHOR") do
+        {:ok, git_sha} ->
+          git_sha
+
+        :error ->
+          "Not available"
+      end
+
+    state
+    |> Map.put(:hostname, hostname)
+    |> Map.put(:app_version, app_version)
+    |> Map.put(:git_sha, git_sha)
+    |> Map.put(:git_author, git_author)
   end
 
   defp generate_annotation_details(state) do
