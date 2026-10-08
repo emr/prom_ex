@@ -116,7 +116,7 @@ if Code.ensure_loaded?(Plug.Cowboy) do
             measurement: :duration,
             description: "The time it takes for the application to process HTTP requests.",
             reporter_options: [
-              buckets: [10, 100, 500, 1_000, 5_000, 10_000, 30_000]
+              buckets: [10, 100, 250, 500, 1_000, 5_000, 10_000, 30_000]
             ],
             drop: drop_ignored(ignore_routes),
             tag_values: &get_tags(&1, routers),

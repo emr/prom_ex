@@ -69,6 +69,7 @@ web_app_prom_ex_phoenix_http_response_size_bytes_count{action="NA",controller="N
 # TYPE web_app_prom_ex_phoenix_http_request_duration_milliseconds histogram
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="index",controller="TestApp.UserController",host="localhost",method="GET",path="/external/users",status="200",le="10"} 0
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="index",controller="TestApp.UserController",host="localhost",method="GET",path="/external/users",status="200",le="100"} 0
+web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="index",controller="TestApp.UserController",host="localhost",method="GET",path="/external/users",status="200",le="250"} 0
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="index",controller="TestApp.UserController",host="localhost",method="GET",path="/external/users",status="200",le="500"} 1
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="index",controller="TestApp.UserController",host="localhost",method="GET",path="/external/users",status="200",le="1000"} 1
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="index",controller="TestApp.UserController",host="localhost",method="GET",path="/external/users",status="200",le="5000"} 1
@@ -79,6 +80,7 @@ web_app_prom_ex_phoenix_http_request_duration_milliseconds_sum{action="index",co
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_count{action="index",controller="TestApp.UserController",host="localhost",method="GET",path="/external/users",status="200"} 1
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="index",controller="TestApp.UserController",host="localhost",method="GET",path="/external/users",status="500",le="10"} 0
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="index",controller="TestApp.UserController",host="localhost",method="GET",path="/external/users",status="500",le="100"} 1
+web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="index",controller="TestApp.UserController",host="localhost",method="GET",path="/external/users",status="500",le="250"} 1
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="index",controller="TestApp.UserController",host="localhost",method="GET",path="/external/users",status="500",le="500"} 1
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="index",controller="TestApp.UserController",host="localhost",method="GET",path="/external/users",status="500",le="1000"} 1
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="index",controller="TestApp.UserController",host="localhost",method="GET",path="/external/users",status="500",le="5000"} 1
@@ -89,6 +91,7 @@ web_app_prom_ex_phoenix_http_request_duration_milliseconds_sum{action="index",co
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_count{action="index",controller="TestApp.UserController",host="localhost",method="GET",path="/external/users",status="500"} 1
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="NA",controller="NA",host="localhost",method="GET",path="special_label",status="200",le="10"} 2
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="NA",controller="NA",host="localhost",method="GET",path="special_label",status="200",le="100"} 2
+web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="NA",controller="NA",host="localhost",method="GET",path="special_label",status="200",le="250"} 2
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="NA",controller="NA",host="localhost",method="GET",path="special_label",status="200",le="500"} 2
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="NA",controller="NA",host="localhost",method="GET",path="special_label",status="200",le="1000"} 2
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="NA",controller="NA",host="localhost",method="GET",path="special_label",status="200",le="5000"} 2
@@ -99,6 +102,7 @@ web_app_prom_ex_phoenix_http_request_duration_milliseconds_sum{action="NA",contr
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_count{action="NA",controller="NA",host="localhost",method="GET",path="special_label",status="200"} 2
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="index",controller="TestApp.UserController",host="localhost",method="GET",path="/internal/users",status="200",le="10"} 0
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="index",controller="TestApp.UserController",host="localhost",method="GET",path="/internal/users",status="200",le="100"} 0
+web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="index",controller="TestApp.UserController",host="localhost",method="GET",path="/internal/users",status="200",le="250"} 0
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="index",controller="TestApp.UserController",host="localhost",method="GET",path="/internal/users",status="200",le="500"} 2
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="index",controller="TestApp.UserController",host="localhost",method="GET",path="/internal/users",status="200",le="1000"} 2
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="index",controller="TestApp.UserController",host="localhost",method="GET",path="/internal/users",status="200",le="5000"} 2
@@ -109,6 +113,7 @@ web_app_prom_ex_phoenix_http_request_duration_milliseconds_sum{action="index",co
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_count{action="index",controller="TestApp.UserController",host="localhost",method="GET",path="/internal/users",status="200"} 2
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="NA",controller="NA",host="localhost",method="GET",path="another_label",status="200",le="10"} 1
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="NA",controller="NA",host="localhost",method="GET",path="another_label",status="200",le="100"} 1
+web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="NA",controller="NA",host="localhost",method="GET",path="another_label",status="200",le="250"} 1
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="NA",controller="NA",host="localhost",method="GET",path="another_label",status="200",le="500"} 1
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="NA",controller="NA",host="localhost",method="GET",path="another_label",status="200",le="1000"} 1
 web_app_prom_ex_phoenix_http_request_duration_milliseconds_bucket{action="NA",controller="NA",host="localhost",method="GET",path="another_label",status="200",le="5000"} 1
