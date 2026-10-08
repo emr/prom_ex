@@ -404,6 +404,9 @@ if Code.ensure_loaded?(Phoenix) do
     end
 
     defp get_conn_tags(routers, additional_routes, additional_tags) do
+      # Resolve the private keys up front as the atoms may not exist yet when the first request comes in
+      additional_tag_keys = Enum.map(additional_tags, fn tag -> {tag, String.to_atom("prom_ex_#{tag}")} end)
+
       fn
         %{conn: %Conn{} = conn} ->
           default_route_tags =
@@ -426,7 +429,7 @@ if Code.ensure_loaded?(Phoenix) do
             method: conn.method,
             host: conn.host
           })
-          |> do_get_additional_tags(conn, additional_tags)
+          |> do_get_additional_tags(conn, additional_tag_keys)
 
         _ ->
           Logger.warning("Could not resolve path for request")
@@ -481,9 +484,8 @@ if Code.ensure_loaded?(Phoenix) do
       end)
     end
 
-    defp do_get_additional_tags(tag_map, conn, additional_tags) do
-      Enum.reduce(additional_tags, tag_map, fn tag, acc ->
-        key = String.to_existing_atom("prom_ex_#{tag}")
+    defp do_get_additional_tags(tag_map, conn, additional_tag_keys) do
+      Enum.reduce(additional_tag_keys, tag_map, fn {tag, key}, acc ->
         Map.put(acc, tag, conn.private[key])
       end)
     end

@@ -124,6 +124,23 @@ defmodule PromEx.Plugins.PhoenixTest do
     end
   end
 
+  describe "additional tags" do
+    test "should not fail when the private key atom does not exist yet" do
+      [_endpoint_info, http_metrics | _] =
+        Phoenix.event_metrics(
+          otp_app: :prom_ex,
+          router: TestApp.Router,
+          endpoint: TestApp.Endpoint,
+          additional_tags: [:tag_never_put_in_conn_private]
+        )
+
+      tag_values_fn = http_metrics.metrics |> List.first() |> Map.get(:tag_values)
+      conn = %Plug.Conn{method: "GET", request_path: "/users", host: "localhost", status: 200}
+
+      assert %{tag_never_put_in_conn_private: nil} = tag_values_fn.(%{conn: conn})
+    end
+  end
+
   describe "router options order preservation" do
     defp http_tag_values_fn(opts) do
       [_endpoint_info, http_metrics | _] =
