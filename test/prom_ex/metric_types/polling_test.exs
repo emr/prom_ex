@@ -47,4 +47,17 @@ defmodule PromEx.MetricTypes.PollingTest do
              } = Polling.build(group_name, poll_rate, mfa, metrics, detach_on_error: false)
     end
   end
+
+  describe "safe_polling_runner/1" do
+    @describetag capture_log: true
+
+    test "should handle raises, exits and throws" do
+      assert Polling.safe_polling_runner({__MODULE__, :dummy, []}) == :ok
+      assert Polling.safe_polling_runner({:erlang, :error, [:boom]}) == :error
+      assert Polling.safe_polling_runner({:erlang, :exit, [{:timeout, {GenServer, :call, []}}]}) == :error
+      assert Polling.safe_polling_runner({:erlang, :throw, [:boom]}) == :error
+    end
+  end
+
+  def dummy, do: :ok
 end

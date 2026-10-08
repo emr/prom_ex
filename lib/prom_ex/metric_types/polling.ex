@@ -70,9 +70,13 @@ defmodule PromEx.MetricTypes.Polling do
   def safe_polling_runner({module, function, args} = mfa) do
     apply(module, function, args)
     :ok
-  rescue
-    error ->
-      Logger.warning("MFA #{inspect(mfa)} encountered an error but has not been detached: #{inspect(error)}")
+  catch
+    # Exits (e.g. GenServer.call timeouts) and throws would otherwise detach the measurement as well
+    kind, reason ->
+      Logger.warning(
+        "MFA #{inspect(mfa)} encountered an error but has not been detached: #{Exception.format_banner(kind, reason)}"
+      )
+
       :error
   end
 end
