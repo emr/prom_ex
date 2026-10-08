@@ -1,3 +1,59 @@
+# `dev` branch: production test plan
+
+> This section only exists on the `dev` branch of [emr/prom_ex](https://github.com/emr/prom_ex). It must not be part of
+> any pull request to [akoutmos/prom_ex](https://github.com/akoutmos/prom_ex).
+
+## Plan
+
+1. Every development lives in its own branch created from `master`, with one commit per fix.
+2. All development branches are merged into `dev`. The development branches are **not** deleted after merging, since
+   the pull requests will be opened from them.
+3. `dev` is deployed to production to test all developments together.
+4. If everything works as expected in production, a pull request is opened from each development branch (not from
+   `dev`) to `akoutmos/prom_ex:master`.
+5. If something is wrong, the fix is committed to the corresponding development branch, which is then merged into
+   `dev` again. Nothing is committed directly to `dev` (except this section), so the development branches stay
+   complete for their pull requests.
+
+## Development branches
+
+| Branch | Contents |
+| --- | --- |
+| [`fix/dashboards`](https://github.com/emr/prom_ex/compare/master...fix/dashboards) | Apdex panels of the Phoenix, Plug Router and Plug Cowboy dashboards (250ms bucket, T = 250ms / 4T = 1000ms, `le` label formats), removed Oban `poll_interval` metric, Broadway dashboard `prom_ex_metric_prefix` |
+| [`fix/plugin-metrics-detaching`](https://github.com/emr/prom_ex/compare/master...fix/plugin-metrics-detaching) | Metric handlers detached by Absinthe unsupported operation types, Phoenix `additional_tags`, Phoenix `http: false` and non-atom exit reasons |
+| [`fix/duration-units-and-buckets`](https://github.com/emr/prom_ex/compare/master...fix/duration-units-and-buckets) | Millisecond values converted to the configured `duration_unit`, Broadway nanosecond/second buckets, `BucketGenerator.exponential!/3` |
+| [`fix/grafana-integration`](https://github.com/emr/prom_ex/compare/master...fix/grafana-integration) | Finch < 0.22 support, non-JSON Grafana responses, lifecycle annotator, dashboard uploader folder fallback, invalid dashboard JSON, Grafana Agent gRPC port, mix tasks runtime config and CLI flag docs |
+| [`fix/core-and-storage`](https://github.com/emr/prom_ex/compare/master...fix/core-and-storage) | Optional `:plug` dependency, polling `detach_on_error` exits/throws, duplicate ETS flush timers, Peep storage when down, Peep bucket modules, docs |
+
+## Deploying `dev`
+
+Point the application's dependency at this branch and update it:
+
+```elixir
+{:prom_ex, github: "emr/prom_ex", branch: "dev"}
+```
+
+```shell
+mix deps.update prom_ex
+```
+
+The dashboards are uploaded to Grafana when the application starts (`upload_dashboards_on_start` defaults to `true`).
+They can also be uploaded with `mix prom_ex.dashboard.publish`.
+
+## Production checklist
+
+- [ ] `fix/dashboards`: the Apdex panels of the HTTP dashboards show data. The `/metrics` output contains the
+      `le="250"` bucket for `*_http_request_duration_milliseconds_bucket`. The 24h Apdex panel reads low during the
+      first day after the deploy (and the 1h panel during the first hour) while the new bucket builds up history.
+- [ ] `fix/dashboards`: the Oban config panel and the Broadway dashboard `job`/`instance` variables show data.
+- [ ] `fix/plugin-metrics-detaching`: the logs contain no `Handler ... has failed and has been detached` errors, and
+      the Phoenix/Absinthe metrics keep increasing over time.
+- [ ] `fix/duration-units-and-buckets`: metric values are unchanged with the default `:millisecond` duration unit
+      (e.g. BEAM and application uptime).
+- [ ] `fix/grafana-integration`: the dashboards are uploaded and, if `annotate_app_lifecycle` is enabled, the
+      start/stop annotations are created.
+- [ ] `fix/core-and-storage`: the metrics endpoint returns 200 and Prometheus keeps scraping it.
+
 <!--START-->
 <p align="center">
   <img align="center" width="40%" src="guides/images/logo.svg" alt="PromEx Logo">
