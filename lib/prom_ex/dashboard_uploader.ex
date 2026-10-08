@@ -173,14 +173,15 @@ defmodule PromEx.DashboardUploader do
 
       {:error, reason} ->
         Logger.error("PromEx.DashboardUploader failed to create folder in Grafana: #{inspect(reason)}.")
-        {:ok, all_folders} = GrafanaClient.get_all_folders(grafana_conn)
 
-        all_folders
-        |> Enum.find(fn %{"title" => find_folder_name} ->
-          find_folder_name == folder_name
-        end)
-        |> Map.get("uid")
-        |> update_existing_folder_uid(grafana_conn, folder_uid, folder_name)
+        with {:ok, all_folders} <- GrafanaClient.get_all_folders(grafana_conn),
+             %{"uid" => uid_of_mismatch} <- Enum.find(all_folders, &(&1["title"] == folder_name)) do
+          update_existing_folder_uid(uid_of_mismatch, grafana_conn, folder_uid, folder_name)
+        else
+          _ ->
+            Logger.error("PromEx.DashboardUploader could not find an existing folder titled \"#{folder_name}\".")
+            Process.exit(self(), :normal)
+        end
     end
   end
 
