@@ -210,13 +210,10 @@ defmodule PromEx.GrafanaClient do
         Logger.warning("Received a #{status_code} from Grafana because: #{inspect(response)}")
         {:error, lookup_status_code(status_code)}
 
-      {:error, %Finch.TransportError{} = transport_error} ->
-        {:error, Exception.message(transport_error)}
-
-      unknown_response ->
-        Logger.warning("Received an unhandled response from Grafana because: #{inspect(unknown_response)}")
-
-        {:error, :unknown}
+      # Finch < 0.22 returns Mint errors while Finch >= 0.22 returns Finch.TransportError/Finch.HTTPError
+      {:error, error} ->
+        Logger.warning("Failed to send the request to Grafana because: #{inspect(error)}")
+        {:error, Exception.message(error)}
     end
   end
 
