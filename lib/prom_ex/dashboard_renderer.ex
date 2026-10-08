@@ -132,6 +132,10 @@ defmodule PromEx.DashboardRenderer do
     dashboard_render
   end
 
+  def apply_dashboard_function(%__MODULE__{valid_json?: false} = dashboard_render, _) do
+    dashboard_render
+  end
+
   def apply_dashboard_function(
         %__MODULE__{decoded_dashboard: decoded_dashboard} = dashboard_render,
         apply_function

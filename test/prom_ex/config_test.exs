@@ -68,7 +68,7 @@ defmodule PromEx.ConfigTest do
                    bearer_token: "blank",
                    log_level: "error",
                    agent_port: "12345",
-                   grpc_port: "123456",
+                   grpc_port: "12346",
                    job: nil,
                    instance: nil,
                    metrics_server_path: "/metrics",
