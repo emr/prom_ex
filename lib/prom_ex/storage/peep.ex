@@ -8,9 +8,15 @@ defmodule PromEx.Storage.Peep do
 
   @impl true
   def scrape(name) do
-    name
-    |> Peep.get_all_metrics()
-    |> Peep.Prometheus.export()
+    case Peep.get_all_metrics(name) do
+      nil ->
+        :prom_ex_down
+
+      metrics ->
+        metrics
+        |> Peep.Prometheus.export()
+        |> IO.iodata_to_binary()
+    end
   end
 
   @impl true
