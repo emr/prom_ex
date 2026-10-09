@@ -183,7 +183,7 @@ if Code.ensure_loaded?(Phoenix) do
     alias PromEx.Utils
 
     @stop_event [:prom_ex, :plugin, :phoenix, :stop]
-    @init_event [:phoenix, :endpoint, :init]
+    @endpoint_info_event [:prom_ex, :plugin, :phoenix, :endpoint_info]
 
     @impl true
     def event_metrics(opts) do
@@ -197,37 +197,49 @@ if Code.ensure_loaded?(Phoenix) do
 
       # Event metrics definitions
       [
-        endpoint_info(metric_prefix, opts),
         http_events(metric_prefix, opts),
         channel_events(metric_prefix, duration_unit, normalize_event_name),
         socket_events(metric_prefix, duration_unit)
       ]
     end
 
-    defp endpoint_info(metric_prefix, opts) do
-      phoenix_endpoints = normalize_endpoint(opts)
-      keep_function_filter = keep_endpoint_metrics(phoenix_endpoints)
+    @impl true
+    def polling_metrics(opts) do
+      case normalize_endpoint(opts) do
+        [] ->
+          []
 
-      Event.build(
+        phoenix_endpoints ->
+          otp_app = Keyword.fetch!(opts, :otp_app)
+          metric_prefix = Keyword.get(opts, :metric_prefix, PromEx.metric_prefix(otp_app, :phoenix))
+          poll_rate = Keyword.get(opts, :poll_rate, 5_000)
+
+          [endpoint_info(metric_prefix, poll_rate, phoenix_endpoints)]
+      end
+    end
+
+    # The URL and port of the endpoints are polled rather than taken from the [:phoenix, :endpoint, :init] event, so
+    # that they are also exported for the endpoints that started before PromEx (the endpoints of the other
+    # applications of an umbrella application) and after PromEx restarts
+    defp endpoint_info(metric_prefix, poll_rate, phoenix_endpoints) do
+      Polling.build(
         :phoenix_endpoint_metrics,
+        poll_rate,
+        {__MODULE__, :execute_endpoint_info, [phoenix_endpoints]},
         [
           last_value(
             metric_prefix ++ [:endpoint, :url, :info],
-            event_name: @init_event,
+            event_name: @endpoint_info_event,
             description: "The configured URL of the Endpoint module.",
-            measurement: fn _measurements -> 1 end,
-            tag_values: &phoenix_init_tag_values/1,
-            tags: [:url, :endpoint],
-            keep: keep_function_filter
+            measurement: :status,
+            tags: [:url, :endpoint]
           ),
           last_value(
             metric_prefix ++ [:endpoint, :port, :info],
-            event_name: @init_event,
+            event_name: @endpoint_info_event,
             description: "The configured port of the Endpoint module.",
-            measurement: fn _measurements -> 1 end,
-            tag_values: &phoenix_init_tag_values/1,
-            tags: [:port, :endpoint],
-            keep: keep_function_filter
+            measurement: :status,
+            tags: [:port, :endpoint]
           )
         ]
       )
@@ -248,30 +260,28 @@ if Code.ensure_loaded?(Phoenix) do
       end
     end
 
-    defp keep_endpoint_metrics(phoenix_endpoints) do
-      fn %{module: module} ->
-        module in phoenix_endpoints
-      end
+    @doc false
+    def execute_endpoint_info(phoenix_endpoints) do
+      Enum.each(phoenix_endpoints, fn endpoint ->
+        # The configuration of an endpoint is only available while it is running
+        if Process.whereis(endpoint) do
+          :telemetry.execute(@endpoint_info_event, %{status: 1}, %{
+            endpoint: normalize_module_name(endpoint),
+            url: endpoint.url(),
+            port: endpoint_port(endpoint)
+          })
+        end
+      end)
     end
 
-    defp phoenix_init_tag_values(%{config: config, module: module}) do
-      port =
-        cond do
-          Keyword.has_key?(config, :http) and config[:http][:port] ->
-            config[:http][:port]
-
-          Keyword.has_key?(config, :https) and config[:https][:port] ->
-            config[:https][:port]
-
-          true ->
-            "Unknown"
+    defp endpoint_port(endpoint) do
+      Enum.find_value([:http, :https], "Unknown", fn scheme ->
+        # The :http/:https config can be explicitly set to `false` to disable a listener
+        case endpoint.config(scheme) do
+          config when is_list(config) -> config[:port]
+          _ -> nil
         end
-
-      %{
-        endpoint: normalize_module_name(module),
-        url: module.url(),
-        port: port
-      }
+      end)
     end
 
     defp http_events(metric_prefix, opts) do

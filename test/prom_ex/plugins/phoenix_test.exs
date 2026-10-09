@@ -1,8 +1,30 @@
+defmodule TestApp.PollingEndpoint do
+  @moduledoc false
+
+  use Phoenix.Endpoint, otp_app: :prom_ex
+end
+
 defmodule PromEx.Plugins.PhoenixTest do
   use ExUnit.Case, async: false
 
   alias PromEx.Plugins.Phoenix
   alias PromEx.Test.Support.{Events, Metrics}
+
+  defmodule WebApp.PromExPollingEndpoints do
+    use PromEx, otp_app: :web_app
+
+    @impl true
+    def plugins do
+      [
+        {Phoenix,
+         endpoints: [
+           {TestApp.PollingEndpoint, routers: [TestApp.Router]},
+           {TestApp.StoppedEndpoint, routers: [TestApp.Router]}
+         ],
+         poll_rate: :timer.hours(1)}
+      ]
+    end
+  end
 
   defmodule WebApp.PromExMultipleEndpoint do
     use PromEx, otp_app: :web_app
@@ -114,7 +136,7 @@ defmodule PromEx.Plugins.PhoenixTest do
 
   describe "event_metrics/1" do
     test "should return the correct number of metrics" do
-      assert length(Phoenix.event_metrics(otp_app: :prom_ex, router: Some.Module)) == 4
+      assert length(Phoenix.event_metrics(otp_app: :prom_ex, router: Some.Module)) == 3
     end
   end
 
@@ -122,11 +144,19 @@ defmodule PromEx.Plugins.PhoenixTest do
     test "should return the correct number of metrics" do
       assert Phoenix.polling_metrics([]) == []
     end
+
+    test "should return the endpoint metrics when endpoints are configured" do
+      assert [%{group_name: :phoenix_endpoint_metrics, metrics: [_url_info, _port_info]}] =
+               Phoenix.polling_metrics(otp_app: :prom_ex, router: Some.Module, endpoint: Some.Endpoint)
+
+      assert [%{group_name: :phoenix_endpoint_metrics}] =
+               Phoenix.polling_metrics(otp_app: :prom_ex, endpoints: [{Some.Endpoint, routers: [Some.Module]}])
+    end
   end
 
   describe "router options order preservation" do
     defp http_tag_values_fn(opts) do
-      [_endpoint_info, http_metrics | _] =
+      [http_metrics | _] =
         Phoenix.event_metrics(Keyword.merge([otp_app: :prom_ex], opts))
 
       http_metrics.metrics
@@ -232,6 +262,46 @@ defmodule PromEx.Plugins.PhoenixTest do
       assert %{path: "/users", action: :index} = resolve_route(tag_values_fn, "/users", TestApp.OtherEndpoint)
       assert %{path: "/users", action: :index} = resolve_route(tag_values_fn, "/users", nil)
       assert %{path: :health} = resolve_route(tag_values_fn, "/health", nil)
+    end
+  end
+
+  describe "endpoint info" do
+    setup do
+      Application.put_env(:prom_ex, TestApp.PollingEndpoint,
+        url: [host: "example.com"],
+        http: [port: 4321],
+        server: false
+      )
+
+      on_exit(fn -> Application.delete_env(:prom_ex, TestApp.PollingEndpoint) end)
+    end
+
+    test "is exported for the running endpoints, including the ones that started after PromEx" do
+      start_supervised!(WebApp.PromExPollingEndpoints)
+      start_supervised!(TestApp.PollingEndpoint)
+
+      Phoenix.execute_endpoint_info([TestApp.PollingEndpoint, TestApp.StoppedEndpoint])
+
+      collected_metrics = Metrics.read_collected(WebApp.PromExPollingEndpoints)
+
+      assert ~s(web_app_prom_ex_phoenix_endpoint_url_info{endpoint="TestApp.PollingEndpoint",url="http://example.com:4321"} 1) in collected_metrics
+
+      assert ~s(web_app_prom_ex_phoenix_endpoint_port_info{endpoint="TestApp.PollingEndpoint",port="4321"} 1) in collected_metrics
+
+      refute Enum.any?(collected_metrics, &String.contains?(&1, "TestApp.StoppedEndpoint"))
+    end
+
+    test "has an unknown port when the endpoint has no HTTP listener" do
+      Application.put_env(:prom_ex, TestApp.PollingEndpoint, url: [host: "example.com"], http: false, server: false)
+
+      start_supervised!(WebApp.PromExPollingEndpoints)
+      start_supervised!(TestApp.PollingEndpoint)
+
+      Phoenix.execute_endpoint_info([TestApp.PollingEndpoint])
+
+      assert ~s(web_app_prom_ex_phoenix_endpoint_port_info{endpoint="TestApp.PollingEndpoint",port="Unknown"} 1) in Metrics.read_collected(
+               WebApp.PromExPollingEndpoints
+             )
     end
   end
 end
