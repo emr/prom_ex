@@ -278,7 +278,7 @@ if Code.ensure_loaded?(Phoenix) do
       routers = fetch_routers!(opts)
       additional_routes = fetch_additional_routes!(opts)
       additional_tags = fetch_additional_tags!(opts)
-      http_metrics_tags = [:status, :method, :path, :controller, :action, :host]
+      http_metrics_tags = [:status, :method, :path, :controller, :action, :host, :endpoint]
       duration_unit = Keyword.get(opts, :duration_unit, :millisecond)
       duration_unit_plural = Utils.make_plural_atom(duration_unit)
 
@@ -424,7 +424,8 @@ if Code.ensure_loaded?(Phoenix) do
           |> Map.merge(%{
             status: conn.status,
             method: conn.method,
-            host: conn.host
+            host: conn.host,
+            endpoint: conn_endpoint(conn)
           })
           |> do_get_additional_tags(conn, additional_tags)
 
@@ -433,6 +434,11 @@ if Code.ensure_loaded?(Phoenix) do
           %{}
       end
     end
+
+    # Phoenix.Endpoint stores itself in the conn before calling its plugs, so this is the endpoint that served the
+    # request, even when another endpoint (a proxy endpoint in an umbrella application) dispatched it
+    defp conn_endpoint(%Conn{private: %{phoenix_endpoint: endpoint}}), do: normalize_module_name(endpoint)
+    defp conn_endpoint(_conn), do: "Unknown"
 
     defp do_get_router_info(conn, routers, default_route_tags) do
       routers

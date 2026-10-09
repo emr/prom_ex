@@ -172,4 +172,17 @@ defmodule PromEx.Plugins.PhoenixTest do
       assert resolve_action(tag_values_fn, "/users") == :overlap_index
     end
   end
+
+  describe "endpoint tag" do
+    test "is the endpoint that served the request" do
+      tag_values_fn = http_tag_values_fn(router: TestApp.Router, endpoint: TestApp.Endpoint)
+      conn = %Plug.Conn{method: "GET", request_path: "/users", host: "localhost", status: 200}
+
+      # A proxy endpoint dispatching the request to another endpoint
+      assert %{endpoint: "TestApp.Endpoint2"} =
+               tag_values_fn.(%{conn: Plug.Conn.put_private(conn, :phoenix_endpoint, TestApp.Endpoint2)})
+
+      assert %{endpoint: "Unknown"} = tag_values_fn.(%{conn: conn})
+    end
+  end
 end
