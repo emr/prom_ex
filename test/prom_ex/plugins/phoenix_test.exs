@@ -185,4 +185,53 @@ defmodule PromEx.Plugins.PhoenixTest do
       assert %{endpoint: "Unknown"} = tag_values_fn.(%{conn: conn})
     end
   end
+
+  describe "routes of multiple endpoints" do
+    setup do
+      tag_values_fn =
+        http_tag_values_fn(
+          endpoints: [
+            {TestApp.Endpoint, routers: [TestApp.Router]},
+            {TestApp.Endpoint2, routers: [TestApp.OverlapRouter]},
+            {TestApp.ProxyEndpoint, routers: [], additional_routes: [health: "/health"]}
+          ]
+        )
+
+      %{tag_values_fn: tag_values_fn}
+    end
+
+    defp resolve_route(tag_values_fn, path, endpoint) do
+      conn = %Plug.Conn{method: "GET", request_path: path, host: "localhost", status: 200}
+      conn = if endpoint, do: Plug.Conn.put_private(conn, :phoenix_endpoint, endpoint), else: conn
+
+      %{conn: conn}
+      |> tag_values_fn.()
+      |> Map.take([:path, :controller, :action])
+    end
+
+    test "are resolved with the routers of the endpoint that served the request", %{tag_values_fn: tag_values_fn} do
+      assert %{path: "/users", action: :index} = resolve_route(tag_values_fn, "/users", TestApp.Endpoint)
+      assert %{path: "/users", action: :overlap_index} = resolve_route(tag_values_fn, "/users", TestApp.Endpoint2)
+    end
+
+    test "include the additional routes of the endpoint that served the request", %{tag_values_fn: tag_values_fn} do
+      assert %{path: :health, controller: "NA"} = resolve_route(tag_values_fn, "/health", TestApp.ProxyEndpoint)
+      assert %{path: "Unknown"} = resolve_route(tag_values_fn, "/health", TestApp.Endpoint)
+    end
+
+    test "are unknown when the endpoint that served the request has no matching route", %{
+      tag_values_fn: tag_values_fn
+    } do
+      assert %{path: "Unknown", controller: "Unknown", action: "Unknown"} =
+               resolve_route(tag_values_fn, "/users", TestApp.ProxyEndpoint)
+    end
+
+    test "are resolved with the routers of all the endpoints when the endpoint is not configured", %{
+      tag_values_fn: tag_values_fn
+    } do
+      assert %{path: "/users", action: :index} = resolve_route(tag_values_fn, "/users", TestApp.OtherEndpoint)
+      assert %{path: "/users", action: :index} = resolve_route(tag_values_fn, "/users", nil)
+      assert %{path: :health} = resolve_route(tag_values_fn, "/health", nil)
+    end
+  end
 end

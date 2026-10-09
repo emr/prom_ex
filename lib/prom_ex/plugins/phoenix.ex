@@ -277,6 +277,7 @@ if Code.ensure_loaded?(Phoenix) do
     defp http_events(metric_prefix, opts) do
       routers = fetch_routers!(opts)
       additional_routes = fetch_additional_routes!(opts)
+      endpoint_routes = fetch_endpoint_routes!(opts)
       additional_tags = fetch_additional_tags!(opts)
       http_metrics_tags = [:status, :method, :path, :controller, :action, :host, :endpoint]
       duration_unit = Keyword.get(opts, :duration_unit, :millisecond)
@@ -294,7 +295,7 @@ if Code.ensure_loaded?(Phoenix) do
             reporter_options: [
               buckets: [10, 100, 500, 1_000, 5_000, 10_000, 30_000]
             ],
-            tag_values: get_conn_tags(routers, additional_routes, additional_tags),
+            tag_values: get_conn_tags(routers, additional_routes, endpoint_routes, additional_tags),
             tags: http_metrics_tags ++ additional_tags,
             unit: {:native, duration_unit}
           ),
@@ -313,7 +314,7 @@ if Code.ensure_loaded?(Phoenix) do
                 _ -> :erlang.iolist_size(metadata.conn.resp_body)
               end
             end,
-            tag_values: get_conn_tags(routers, additional_routes, additional_tags),
+            tag_values: get_conn_tags(routers, additional_routes, endpoint_routes, additional_tags),
             tags: http_metrics_tags ++ additional_tags,
             unit: :byte
           ),
@@ -323,7 +324,7 @@ if Code.ensure_loaded?(Phoenix) do
             metric_prefix ++ [:http, :requests, :total],
             event_name: @stop_event,
             description: "The number of requests have been serviced.",
-            tag_values: get_conn_tags(routers, additional_routes, additional_tags),
+            tag_values: get_conn_tags(routers, additional_routes, endpoint_routes, additional_tags),
             tags: http_metrics_tags ++ additional_tags
           )
         ]
@@ -403,9 +404,13 @@ if Code.ensure_loaded?(Phoenix) do
       )
     end
 
-    defp get_conn_tags(routers, additional_routes, additional_tags) do
+    defp get_conn_tags(routers, additional_routes, endpoint_routes, additional_tags) do
       fn
         %{conn: %Conn{} = conn} ->
+          # The routes of the endpoint that served the request, or of all the endpoints when it is not configured
+          {routers, additional_routes} =
+            Map.get(endpoint_routes, conn.private[:phoenix_endpoint], {routers, additional_routes})
+
           default_route_tags =
             case additional_routes do
               [] ->
@@ -576,6 +581,21 @@ if Code.ensure_loaded?(Phoenix) do
           [Keyword.get(opts, :event_prefix, [:phoenix, :endpoint])]
       end
       |> Enum.uniq()
+    end
+
+    defp fetch_endpoint_routes!(opts) do
+      opts
+      |> fetch_either!(:router, :endpoints)
+      |> case do
+        endpoints when is_list(endpoints) ->
+          Map.new(endpoints, fn {endpoint, endpoint_opts} ->
+            routers = endpoint_opts |> Keyword.fetch!(:routers) |> Enum.uniq()
+            {endpoint, {routers, Keyword.get(endpoint_opts, :additional_routes, [])}}
+          end)
+
+        _router ->
+          %{}
+      end
     end
 
     defp fetch_routers!(opts) do
