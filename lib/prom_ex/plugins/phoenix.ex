@@ -15,6 +15,12 @@ if Code.ensure_loaded?(Phoenix) do
     - `duration_unit`: This is an OPTIONAL option and is a `Telemetry.Metrics.time_unit()`. It can be one of:
       `:second | :millisecond | :microsecond | :nanosecond`. It is `:millisecond` by default.
 
+    - `poll_rate`: This option is OPTIONAL and is the rate at which the URL and port of the endpoints are refreshed
+      (default is 5 seconds).
+
+    The HTTP metrics are labelled with the endpoint that served the request (the `:phoenix_endpoint` private key on the
+    connection struct).
+
     ### Single Endpoint/Router
     - `router`: This option is REQUIRED and is the full module name of your Phoenix Router (e.g MyAppWeb.Router).
 
@@ -76,7 +82,8 @@ if Code.ensure_loaded?(Phoenix) do
 
       - `endpoint_opts`: Per endpoint plugin options:
         - `:routers`: This option is REQUIRED and lists all of routers modules for the endpoint, the HTTP metrics will
-          be augmented with controller/action/path information from the routers.
+          be augmented with controller/action/path information from the routers. A request is resolved with the routers
+          of the endpoint that served it, or with the routers of all the endpoints when that endpoint is not listed.
 
         - `:event_prefix`: This option is OPTIONAL and allows you to set the event prefix for the Telemetry events. This
         value should align with what you pass to `Plug.Telemetry` in the  corresponding endpoint module (see the plug docs
@@ -101,6 +108,29 @@ if Code.ensure_loaded?(Phoenix) do
       endpoints: [
         {MyApp.Endpoint, routers: [MyAppWeb.Public.Router]},
         {MyApp.Endpoint2, routers: [MyAppWeb.Admin.Router], event_prefix: [:admin, :endpoint]}
+      ]
+    }
+    ```
+
+    #### Umbrella applications behind a proxy endpoint
+
+    When a proxy endpoint dispatches the requests to the endpoints of the other applications of an umbrella application,
+    measure every request once with `Plug.Telemetry` in the proxy endpoint and list all the endpoints with its event
+    prefix. The requests are labelled with the endpoint that the proxy dispatched them to, or with the proxy endpoint
+    for the ones that it answered itself.
+
+    ```elixir
+    # In MyProxy.Endpoint
+    plug Plug.Telemetry, event_prefix: [:proxy, :endpoint]
+    ```
+
+    ```elixir
+    {
+      PromEx.Plugins.Phoenix,
+      endpoints: [
+        {MyProxy.Endpoint, routers: [], event_prefix: [:proxy, :endpoint]},
+        {MyAppWeb.Endpoint, routers: [MyAppWeb.Router], event_prefix: [:proxy, :endpoint]},
+        {MyAdminWeb.Endpoint, routers: [MyAdminWeb.Router], event_prefix: [:proxy, :endpoint]}
       ]
     }
     ```
