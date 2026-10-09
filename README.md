@@ -24,6 +24,7 @@
 | [`fix/duration-units-and-buckets`](https://github.com/emr/prom_ex/compare/master...fix/duration-units-and-buckets) | Millisecond values converted to the configured `duration_unit`, Broadway nanosecond/second buckets, `BucketGenerator.exponential!/3` |
 | [`fix/grafana-integration`](https://github.com/emr/prom_ex/compare/master...fix/grafana-integration) | Finch < 0.22 support, non-JSON Grafana responses, lifecycle annotator, dashboard uploader folder fallback, invalid dashboard JSON, Grafana Agent gRPC port, mix tasks runtime config and CLI flag docs |
 | [`fix/core-and-storage`](https://github.com/emr/prom_ex/compare/master...fix/core-and-storage) | Optional `:plug` dependency, polling `detach_on_error` exits/throws, duplicate ETS flush timers, Peep storage when down, Peep bucket modules, docs |
+| [`feat/phoenix-umbrella-support`](https://github.com/emr/prom_ex/compare/master...feat/phoenix-umbrella-support) | Phoenix plugin for umbrella applications behind a proxy endpoint: `endpoint` label on the HTTP metrics, routes resolved with the routers of the serving endpoint, polled endpoint URL/port (`poll_rate`), Phoenix dashboard HTTP panels filtered by endpoint |
 
 ## Deploying `dev`
 
