@@ -15,6 +15,12 @@ if Code.ensure_loaded?(Phoenix) do
     - `duration_unit`: This is an OPTIONAL option and is a `Telemetry.Metrics.time_unit()`. It can be one of:
       `:second | :millisecond | :microsecond | :nanosecond`. It is `:millisecond` by default.
 
+    - `poll_rate`: This option is OPTIONAL and is the rate at which the URL and port of the endpoints are refreshed
+      (default is 5 seconds).
+
+    The HTTP metrics are labelled with the endpoint that served the request (the `:phoenix_endpoint` private key on the
+    connection struct).
+
     ### Single Endpoint/Router
     - `router`: This option is REQUIRED and is the full module name of your Phoenix Router (e.g MyAppWeb.Router).
 
@@ -76,7 +82,8 @@ if Code.ensure_loaded?(Phoenix) do
 
       - `endpoint_opts`: Per endpoint plugin options:
         - `:routers`: This option is REQUIRED and lists all of routers modules for the endpoint, the HTTP metrics will
-          be augmented with controller/action/path information from the routers.
+          be augmented with controller/action/path information from the routers. A request is resolved with the routers
+          of the endpoint that served it, or with the routers of all the endpoints when that endpoint is not listed.
 
         - `:event_prefix`: This option is OPTIONAL and allows you to set the event prefix for the Telemetry events. This
         value should align with what you pass to `Plug.Telemetry` in the  corresponding endpoint module (see the plug docs
@@ -101,6 +108,29 @@ if Code.ensure_loaded?(Phoenix) do
       endpoints: [
         {MyApp.Endpoint, routers: [MyAppWeb.Public.Router]},
         {MyApp.Endpoint2, routers: [MyAppWeb.Admin.Router], event_prefix: [:admin, :endpoint]}
+      ]
+    }
+    ```
+
+    #### Umbrella applications behind a proxy endpoint
+
+    When a proxy endpoint dispatches the requests to the endpoints of the other applications of an umbrella application,
+    measure every request once with `Plug.Telemetry` in the proxy endpoint and list all the endpoints with its event
+    prefix. The requests are labelled with the endpoint that the proxy dispatched them to, or with the proxy endpoint
+    for the ones that it answered itself.
+
+    ```elixir
+    # In MyProxy.Endpoint
+    plug Plug.Telemetry, event_prefix: [:proxy, :endpoint]
+    ```
+
+    ```elixir
+    {
+      PromEx.Plugins.Phoenix,
+      endpoints: [
+        {MyProxy.Endpoint, routers: [], event_prefix: [:proxy, :endpoint]},
+        {MyAppWeb.Endpoint, routers: [MyAppWeb.Router], event_prefix: [:proxy, :endpoint]},
+        {MyAdminWeb.Endpoint, routers: [MyAdminWeb.Router], event_prefix: [:proxy, :endpoint]}
       ]
     }
     ```
@@ -183,7 +213,7 @@ if Code.ensure_loaded?(Phoenix) do
     alias PromEx.Utils
 
     @stop_event [:prom_ex, :plugin, :phoenix, :stop]
-    @init_event [:phoenix, :endpoint, :init]
+    @endpoint_info_event [:prom_ex, :plugin, :phoenix, :endpoint_info]
 
     @impl true
     def event_metrics(opts) do
@@ -197,37 +227,49 @@ if Code.ensure_loaded?(Phoenix) do
 
       # Event metrics definitions
       [
-        endpoint_info(metric_prefix, opts),
         http_events(metric_prefix, opts),
         channel_events(metric_prefix, duration_unit, normalize_event_name),
         socket_events(metric_prefix, duration_unit)
       ]
     end
 
-    defp endpoint_info(metric_prefix, opts) do
-      phoenix_endpoints = normalize_endpoint(opts)
-      keep_function_filter = keep_endpoint_metrics(phoenix_endpoints)
+    @impl true
+    def polling_metrics(opts) do
+      case normalize_endpoint(opts) do
+        [] ->
+          []
 
-      Event.build(
+        phoenix_endpoints ->
+          otp_app = Keyword.fetch!(opts, :otp_app)
+          metric_prefix = Keyword.get(opts, :metric_prefix, PromEx.metric_prefix(otp_app, :phoenix))
+          poll_rate = Keyword.get(opts, :poll_rate, 5_000)
+
+          [endpoint_info(metric_prefix, poll_rate, phoenix_endpoints)]
+      end
+    end
+
+    # The URL and port of the endpoints are polled rather than taken from the [:phoenix, :endpoint, :init] event, so
+    # that they are also exported for the endpoints that started before PromEx (the endpoints of the other
+    # applications of an umbrella application) and after PromEx restarts
+    defp endpoint_info(metric_prefix, poll_rate, phoenix_endpoints) do
+      Polling.build(
         :phoenix_endpoint_metrics,
+        poll_rate,
+        {__MODULE__, :execute_endpoint_info, [phoenix_endpoints]},
         [
           last_value(
             metric_prefix ++ [:endpoint, :url, :info],
-            event_name: @init_event,
+            event_name: @endpoint_info_event,
             description: "The configured URL of the Endpoint module.",
-            measurement: fn _measurements -> 1 end,
-            tag_values: &phoenix_init_tag_values/1,
-            tags: [:url, :endpoint],
-            keep: keep_function_filter
+            measurement: :status,
+            tags: [:url, :endpoint]
           ),
           last_value(
             metric_prefix ++ [:endpoint, :port, :info],
-            event_name: @init_event,
+            event_name: @endpoint_info_event,
             description: "The configured port of the Endpoint module.",
-            measurement: fn _measurements -> 1 end,
-            tag_values: &phoenix_init_tag_values/1,
-            tags: [:port, :endpoint],
-            keep: keep_function_filter
+            measurement: :status,
+            tags: [:port, :endpoint]
           )
         ]
       )
@@ -248,38 +290,36 @@ if Code.ensure_loaded?(Phoenix) do
       end
     end
 
-    defp keep_endpoint_metrics(phoenix_endpoints) do
-      fn %{module: module} ->
-        module in phoenix_endpoints
-      end
+    @doc false
+    def execute_endpoint_info(phoenix_endpoints) do
+      Enum.each(phoenix_endpoints, fn endpoint ->
+        # The configuration of an endpoint is only available while it is running
+        if Process.whereis(endpoint) do
+          :telemetry.execute(@endpoint_info_event, %{status: 1}, %{
+            endpoint: normalize_module_name(endpoint),
+            url: endpoint.url(),
+            port: endpoint_port(endpoint)
+          })
+        end
+      end)
     end
 
-    defp phoenix_init_tag_values(%{config: config, module: module}) do
-      port =
-        cond do
-          # The :http/:https config can be explicitly set to `false` to disable a listener
-          is_list(config[:http]) and config[:http][:port] ->
-            config[:http][:port]
-
-          is_list(config[:https]) and config[:https][:port] ->
-            config[:https][:port]
-
-          true ->
-            "Unknown"
+    defp endpoint_port(endpoint) do
+      Enum.find_value([:http, :https], "Unknown", fn scheme ->
+        # The :http/:https config can be explicitly set to `false` to disable a listener
+        case endpoint.config(scheme) do
+          config when is_list(config) -> config[:port]
+          _ -> nil
         end
-
-      %{
-        endpoint: normalize_module_name(module),
-        url: module.url(),
-        port: port
-      }
+      end)
     end
 
     defp http_events(metric_prefix, opts) do
       routers = fetch_routers!(opts)
       additional_routes = fetch_additional_routes!(opts)
+      endpoint_routes = fetch_endpoint_routes!(opts)
       additional_tags = fetch_additional_tags!(opts)
-      http_metrics_tags = [:status, :method, :path, :controller, :action, :host]
+      http_metrics_tags = [:status, :method, :path, :controller, :action, :host, :endpoint]
       duration_unit = Keyword.get(opts, :duration_unit, :millisecond)
       duration_unit_plural = Utils.make_plural_atom(duration_unit)
 
@@ -295,7 +335,7 @@ if Code.ensure_loaded?(Phoenix) do
             reporter_options: [
               buckets: [10, 100, 250, 500, 1_000, 5_000, 10_000, 30_000]
             ],
-            tag_values: get_conn_tags(routers, additional_routes, additional_tags),
+            tag_values: get_conn_tags(routers, additional_routes, endpoint_routes, additional_tags),
             tags: http_metrics_tags ++ additional_tags,
             unit: {:native, duration_unit}
           ),
@@ -314,7 +354,7 @@ if Code.ensure_loaded?(Phoenix) do
                 _ -> :erlang.iolist_size(metadata.conn.resp_body)
               end
             end,
-            tag_values: get_conn_tags(routers, additional_routes, additional_tags),
+            tag_values: get_conn_tags(routers, additional_routes, endpoint_routes, additional_tags),
             tags: http_metrics_tags ++ additional_tags,
             unit: :byte
           ),
@@ -324,7 +364,7 @@ if Code.ensure_loaded?(Phoenix) do
             metric_prefix ++ [:http, :requests, :total],
             event_name: @stop_event,
             description: "The number of requests have been serviced.",
-            tag_values: get_conn_tags(routers, additional_routes, additional_tags),
+            tag_values: get_conn_tags(routers, additional_routes, endpoint_routes, additional_tags),
             tags: http_metrics_tags ++ additional_tags
           )
         ]
@@ -404,12 +444,16 @@ if Code.ensure_loaded?(Phoenix) do
       )
     end
 
-    defp get_conn_tags(routers, additional_routes, additional_tags) do
+    defp get_conn_tags(routers, additional_routes, endpoint_routes, additional_tags) do
       # Resolve the private keys up front as the atoms may not exist yet when the first request comes in
       additional_tag_keys = Enum.map(additional_tags, fn tag -> {tag, String.to_atom("prom_ex_#{tag}")} end)
 
       fn
         %{conn: %Conn{} = conn} ->
+          # The routes of the endpoint that served the request, or of all the endpoints when it is not configured
+          {routers, additional_routes} =
+            Map.get(endpoint_routes, conn.private[:phoenix_endpoint], {routers, additional_routes})
+
           default_route_tags =
             case additional_routes do
               [] ->
@@ -428,7 +472,8 @@ if Code.ensure_loaded?(Phoenix) do
           |> Map.merge(%{
             status: conn.status,
             method: conn.method,
-            host: conn.host
+            host: conn.host,
+            endpoint: conn_endpoint(conn)
           })
           |> do_get_additional_tags(conn, additional_tag_keys)
 
@@ -437,6 +482,11 @@ if Code.ensure_loaded?(Phoenix) do
           %{}
       end
     end
+
+    # Phoenix.Endpoint stores itself in the conn before calling its plugs, so this is the endpoint that served the
+    # request, even when another endpoint (a proxy endpoint in an umbrella application) dispatched it
+    defp conn_endpoint(%Conn{private: %{phoenix_endpoint: endpoint}}), do: normalize_module_name(endpoint)
+    defp conn_endpoint(_conn), do: "Unknown"
 
     defp do_get_router_info(conn, routers, default_route_tags) do
       routers
@@ -573,6 +623,21 @@ if Code.ensure_loaded?(Phoenix) do
           [Keyword.get(opts, :event_prefix, [:phoenix, :endpoint])]
       end
       |> Enum.uniq()
+    end
+
+    defp fetch_endpoint_routes!(opts) do
+      opts
+      |> fetch_either!(:router, :endpoints)
+      |> case do
+        endpoints when is_list(endpoints) ->
+          Map.new(endpoints, fn {endpoint, endpoint_opts} ->
+            routers = endpoint_opts |> Keyword.fetch!(:routers) |> Enum.uniq()
+            {endpoint, {routers, Keyword.get(endpoint_opts, :additional_routes, [])}}
+          end)
+
+        _router ->
+          %{}
+      end
     end
 
     defp fetch_routers!(opts) do
